@@ -11,12 +11,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 from imageio import imsave
-from torchvision.utils import make_grid, save_image
+# from torchvision.utils import make_grid, save_image
 from tqdm import tqdm
 import cv2
 
 from utils.fid_score import calculate_fid_given_paths
-# from utils.torch_fid_score import get_fid
+from utils.torch_fid_score import get_fid
 # from utils.inception_score import get_inception_score
 
 logger = logging.getLogger(__name__)
@@ -33,11 +33,11 @@ import os
 import numpy as np
 from tensorboardX import SummaryWriter
 from utils.inception_score import get_inception_score
-
+import warnings
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
-
-
+# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+# warnings.filterwarnings('ignore')
 def validate(args, fixed_z, fid_stat, epoch, gen_net: nn.Module, writer_dict, clean_dir=True):
     writer = writer_dict['writer']
     global_steps = writer_dict['valid_global_steps']
@@ -81,6 +81,7 @@ def validate(args, fixed_z, fid_stat, epoch, gen_net: nn.Module, writer_dict, cl
     return 0, fid_score
 
 def main():
+    import ipdb
     args = cfg.parse_args()
     torch.cuda.manual_seed(args.random_seed)
     assert args.exp_name
@@ -88,14 +89,15 @@ def main():
     assert os.path.exists(args.load_path)
     args.path_helper = set_log_dir('logs_eval', args.exp_name)
     logger = create_logger(args.path_helper['log_path'], phase='test')
-
+    ipdb.set_trace()
     # set tf env
     _init_inception()
     inception_path = check_or_download_inception(None)
     create_inception_graph(inception_path)
-
     # import network
-    gen_net = eval('models_search.'+args.gen_model+'.Generator')(args=args).cuda()
+
+    gen_net = eval('models_search.'+args.gen_model+'.Generator')(args=args)
+    gen_net = gen_net.cuda()
     gen_net = torch.nn.DataParallel(gen_net.to("cuda:0"), device_ids=[0])
 
     # fid stat
@@ -113,7 +115,7 @@ def main():
 
     # initial
     fixed_z = torch.cuda.FloatTensor(np.random.normal(0, 1, (4, args.latent_dim)))
-
+    print('check2')
     # set writer
     logger.info(f'=> resuming from {args.load_path}')
     checkpoint_file = args.load_path

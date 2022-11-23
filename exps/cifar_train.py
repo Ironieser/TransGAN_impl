@@ -3,23 +3,22 @@
 import os
 import argparse
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--rank', type=str, default="0")
-    parser.add_argument('--node', type=str, default="0015")
-    opt = parser.parse_args()
+# def parse_args():
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--rank', type=str, default="0")
+#     parser.add_argument('--node', type=str, default="0015")
+#     opt = parser.parse_args()
+#
+#     return opt
+# args = parse_args()
 
-    return opt
-args = parse_args()
-
-os.system(f"CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train_derived.py \
+os.system(f"CUDA_VISIBLE_DEVICES=0,1,2,3 python -m \
+torch.distributed.launch \
+--nproc_per_node=4 \
+my_train.py \
 -gen_bs 128 \
 -dis_bs 64 \
---dist-url 'tcp://localhost:14256' \
---dist-backend 'nccl' \
---multiprocessing-distributed \
---world-size 1 \
---rank {args.rank} \
+--world-size 4 \
 --dataset cifar10 \
 --bottom_width 8 \
 --img_size 32 \

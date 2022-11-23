@@ -16,7 +16,7 @@ from imageio import imsave
 from utils.utils import make_grid, save_image
 from tqdm import tqdm
 import cv2
-
+import torch.distributed as dist
 # from utils.fid_score import calculate_fid_given_paths
 from utils.torch_fid_score import get_fid
 # from utils.inception_score import get_inception_scorepython exps/dist1_new_church256.py --node 0022 --rank 0sample
@@ -77,7 +77,8 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
     
     dis_optimizer.zero_grad()
     gen_optimizer.zero_grad()
-    for iter_idx, (imgs, _) in enumerate(tqdm(train_loader)):
+    train_bar = tqdm(train_loader) if dist.get_rank()==0 else train_loader
+    for iter_idx, (imgs, _) in enumerate(train_bar ):
         global_steps = writer_dict['train_global_steps']
         
 

@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-MODEL_DIR = '/tmp/imagenet'
+MODEL_DIR = './inception_ckpt'
 DATA_URL = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
 softmax = None
 config = tf.ConfigProto()

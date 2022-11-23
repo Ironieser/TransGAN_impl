@@ -22,7 +22,7 @@ def parse_args():
                     help='number of nodes for distributed training')
     parser.add_argument('--rank', default=-1, type=int,
                         help='node rank for distributed training')
-    parser.add_argument('--loca_rank', default=-1, type=int,
+    parser.add_argument('--local_rank', default=0, type=int,
                         help='node rank for distributed training')
     parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                         help='url used to set up distributed training')
@@ -37,6 +37,8 @@ def parse_args():
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
+
+
     parser.add_argument(
         '--max_epoch',
         type=int,
