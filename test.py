@@ -6,7 +6,7 @@ import logging
 import operator
 import os
 from copy import deepcopy
-
+import tensorflow
 import numpy as np
 import torch
 import torch.nn as nn

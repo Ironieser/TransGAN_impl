@@ -137,3 +137,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/cifar_checkpoint/cifar_checkpoint.zip
