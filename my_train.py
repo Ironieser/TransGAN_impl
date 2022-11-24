@@ -39,7 +39,7 @@ import random
 warnings.filterwarnings("ignore")
 CUDA_LAUNCH_BLOCKING=1
 def setup(local_rank):
-    print(local_rank)
+    # print(local_rank)
     torch.cuda.set_device(local_rank)
     dist.init_process_group(backend='nccl')
 
@@ -146,7 +146,8 @@ def main(args):
     del avg_gen_net
     start_epoch = 0
     best_fid = 1e4
-
+    # import ipdb
+    # ipdb.set_trace()
     # set writer
     writer = None
     if args.load_path:
@@ -184,6 +185,8 @@ def main(args):
             logger = create_logger(args.path_helper['log_path'])
             writer = SummaryWriter(args.path_helper['log_path'])
 
+    # import ipdb
+    # ipdb.set_trace()
     if args.local_rank == 0:
         logger.info(args)
     writer_dict = {
@@ -223,12 +226,16 @@ def main(args):
             else:
                 is_best = False
         else:
-            is_best = False
+            is_best = True
         # is_best = True
         avg_gen_net = deepcopy(gen_net)
         load_params(avg_gen_net, gen_avg_param, args)
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
                                                     and local_rank == 0):
+            # ipdb.set_trace()
+            # print(args.path_helper)
+            # print(args.path_helper['ckpt_path'])
+
             save_checkpoint({
                 'epoch': epoch + 1,
                 'gen_model': args.gen_model,
@@ -239,9 +246,9 @@ def main(args):
                 'gen_optimizer': gen_optimizer.state_dict(),
                 'dis_optimizer': dis_optimizer.state_dict(),
                 'best_fid': best_fid,
-                # 'path_helper': args.path_helper,
+                'path_helper': args.path_helper,
                 'fixed_z': fixed_z
-            }, is_best, args.path_helper['ckpt_path'], filename="checkpoint")
+            }, is_best, args.path_helper['ckpt_path'], filename='epoch'+str(epoch)+"_checkpoint.pth")
         dist.barrier()
         del avg_gen_net
 

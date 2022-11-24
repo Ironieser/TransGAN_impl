@@ -197,8 +197,8 @@ def main_worker(gpu, ngpus_per_node, args):
     writer = None
     if args.load_path:
         print(f'=> resuming from {args.load_path}')
-        assert os.path.exists(args.load_path)
-        checkpoint_file = os.path.join(args.load_path)
+        assert os.path.exists(args.load_path)`
+        checkpoint_file = os.path.join(args.load_path)`
         assert os.path.exists(checkpoint_file)
         loc = 'cuda:{}'.format(args.gpu)
         checkpoint = torch.load(checkpoint_file, map_location=loc)

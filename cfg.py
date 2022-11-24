@@ -32,13 +32,18 @@ def parse_args():
                         help='seed for initializing training. ')
     parser.add_argument('--gpu', default=None, type=int,
                         help='GPU id to use.')
-    parser.add_argument('--multiprocessing-distributed', action='store_true',
+    parser.add_argument('--multiprocessing_distributed', action='store_true',
                     help='Use multi-processing distributed training to launch '
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
 
-
+    parser.add_argument(
+        '--path_helper',
+        type=dict,
+        default={},
+        help='the dict of path'
+    )
     parser.add_argument(
         '--max_epoch',
         type=int,

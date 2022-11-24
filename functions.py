@@ -78,10 +78,11 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
     dis_optimizer.zero_grad()
     gen_optimizer.zero_grad()
     train_bar = tqdm(train_loader) if dist.get_rank()==0 else train_loader
-    for iter_idx, (imgs, _) in enumerate(train_bar ):
+    for iter_idx, (imgs, _) in enumerate(train_loader):
         global_steps = writer_dict['train_global_steps']
-        
-
+        #
+        # if iter_idx >10:
+        #     break
         # Adversarial ground truths
         real_imgs = imgs.type(torch.cuda.FloatTensor).cuda(args.gpu, non_blocking=True)
 
@@ -149,7 +150,7 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             dis_optimizer.step()
             dis_optimizer.zero_grad()
 
-            writer.add_scalar('d_loss', d_loss.item(), global_steps) if args.rank == 0 else 0
+            writer.add_scalar('d_loss', d_loss.item(), global_steps) if args.local_rank == 0 else 0
 
         # -----------------
         #  Train Generator
@@ -218,20 +219,20 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
                 avg_p.mul_(ema_beta).add_(1. - ema_beta, cpu_p.cpu().data)
                 del cpu_p
 
-            writer.add_scalar('g_loss', g_loss.item(), global_steps) if args.rank == 0 else 0
+            writer.add_scalar('g_loss', g_loss.item(), global_steps) if args.local_rank == 0 else 0
             gen_step += 1
 
         # verbose
-        if gen_step and iter_idx % args.print_freq == 0 and args.rank == 0:
+        if gen_step and iter_idx % args.print_freq == 0 and args.local_rank == 0:
             sample_imgs = torch.cat((gen_imgs[:16], real_imgs[:16]), dim=0)
-#             scale_factor = args.img_size // int(sample_imgs.size(3))
-#             sample_imgs = torch.nn.functional.interpolate(sample_imgs, scale_factor=2)
-#             img_grid = make_grid(sample_imgs, nrow=4, normalize=True, scale_each=True)
+            scale_factor = args.img_size // int(sample_imgs.size(3))
+            sample_imgs = torch.nn.functional.interpolate(sample_imgs, scale_factor=2)
+            img_grid = make_grid(sample_imgs, nrow=4, normalize=True, scale_each=True)
 #             save_image(sample_imgs, f'sampled_images_{args.exp_name}.jpg', nrow=4, normalize=True, scale_each=True)
-            # writer.add_image(f'sampled_images_{args.exp_name}', img_grid, global_steps)
-            tqdm.write(
-                "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [ema: %f] " %
-                (epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item(), ema_beta))
+            writer.add_image(f'sampled_images_{args.exp_name}', img_grid, global_steps)
+            # tqdm.write(
+            #     "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [ema: %f] " %
+            #     (epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item(), ema_beta))
             del gen_imgs
             del real_imgs
             del fake_validity
@@ -305,22 +306,22 @@ def validate(args, fixed_z, fid_stat, epoch, gen_net: nn.Module, writer_dict, cl
 #         img_list.extend(list(gen_imgs))
 
 #     get inception score
-    logger.info('=> calculate inception score') if args.rank == 0 else 0
-    if args.rank == 0:
+    logger.info('=> calculate inception score') if args.local_rank == 0 else 0
+    if args.local_rank == 0:
 #         mean, std = get_inception_score(img_list)
         mean, std = 0, 0
     else:
         mean, std = 0, 0
-    print(f"Inception score: {mean}") if args.rank == 0 else 0
+    print(f"Inception score: {mean}") if args.local_rank == 0 else 0
 #     mean, std = 0, 0
     # get fid score
-    print('=> calculate fid score') if args.rank == 0 else 0
-    if args.rank == 0:
+    print('=> calculate fid score') if args.local_rank == 0 else 0
+    if args.local_rank == 0:
         fid_score = get_fid(args, fid_stat, epoch, gen_net, args.num_eval_imgs, args.gen_batch_size, args.eval_batch_size, writer_dict=writer_dict, cls_idx=None)
     else:
         fid_score = 10000
     # fid_score = 10000
-    print(f"FID score: {fid_score}") if args.rank == 0 else 0
+    print(f"FID score: {fid_score}") if args.local_rank == 0 else 0
     
 #     if args.gpu == 0:
 #         if clean_dir:
@@ -329,7 +330,7 @@ def validate(args, fixed_z, fid_stat, epoch, gen_net: nn.Module, writer_dict, cl
 #             logger.info(f'=> sampled images are saved to {fid_buffer_dir}')
 
 #     writer.add_image('sampled_images', img_grid, global_steps)
-    if args.rank == 0:
+    if args.local_rank == 0:
         writer.add_scalar('Inception_score/mean', mean, global_steps)
         writer.add_scalar('Inception_score/std', std, global_steps)
         writer.add_scalar('FID_score', fid_score, global_steps)

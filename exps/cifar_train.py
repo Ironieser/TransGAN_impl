@@ -19,6 +19,7 @@ my_train.py \
 -gen_bs 128 \
 -dis_bs 64 \
 --world-size 4 \
+--multiprocessing_distributed \
 --dataset cifar10 \
 --bottom_width 8 \
 --img_size 32 \
@@ -32,7 +33,7 @@ my_train.py \
 --dropout 0 \
 --latent_dim 256 \
 --gf_dim 1024 \
---num_workers 16 \
+--num_workers 10 \
 --g_lr 0.0001 \
 --d_lr 0.0001 \
 --optimizer adam \
@@ -45,7 +46,7 @@ my_train.py \
 --num_eval_imgs 50000 \
 --init_type xavier_uniform \
 --n_critic 4 \
---val_freq 1000000 \
+--val_freq 1 \
 --print_freq 50 \
 --grow_steps 0 0 \
 --fade_in 0 \

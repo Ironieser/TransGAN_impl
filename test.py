@@ -81,7 +81,7 @@ def validate(args, fixed_z, fid_stat, epoch, gen_net: nn.Module, writer_dict, cl
     return 0, fid_score
 
 def main():
-    import ipdb
+    # import ipdb
     args = cfg.parse_args()
     torch.cuda.manual_seed(args.random_seed)
     assert args.exp_name
@@ -89,7 +89,7 @@ def main():
     assert os.path.exists(args.load_path)
     args.path_helper = set_log_dir('logs_eval', args.exp_name)
     logger = create_logger(args.path_helper['log_path'], phase='test')
-    ipdb.set_trace()
+    # ipdb.set_trace()
     # set tf env
     _init_inception()
     inception_path = check_or_download_inception(None)
