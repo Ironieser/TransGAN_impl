@@ -19,8 +19,8 @@ import cv2
 import torch.distributed as dist
 # from utils.fid_score import calculate_fid_given_paths
 from utils.torch_fid_score import get_fid
-# from utils.inception_score import get_inception_scorepython exps/dist1_new_church256.py --node 0022 --rank 0sample
-
+from utils.inception_score import get_inception_score
+# from utils.inception_score import get_inception_score
 logger = logging.getLogger(__name__)
 
 def cur_stages(iter, args):
@@ -283,27 +283,27 @@ def validate(args, fixed_z, fid_stat, epoch, gen_net: nn.Module, writer_dict, cl
     gen_net.eval()
 
 #     generate images
-#     with torch.no_grad():
-#         sample_imgs = gen_net(fixed_z, epoch)
-#     img_grid = make_grid(sample_imgs, nrow=5, normalize=True, scale_each=True)
+    with torch.no_grad():
+    #     sample_imgs = gen_net(fixed_z, epoch)
+    #     img_grid = make_grid(sample_imgs, nrow=5, normalize=True, scale_each=True)
 
-#     get fid and inception score
-#     if args.gpu == 0:
-#         fid_buffer_dir = os.path.join(args.path_helper['sample_path'], 'fid_buffer')
-#         os.makedirs(fid_buffer_dir, exist_ok=True) if args.gpu == 0 else 0
+    #     get fid and inception score
+    #     if args.gpu == 0:
+    #         fid_buffer_dir = os.path.join(args.path_helper['sample_path'], 'fid_buffer')
+    #         os.makedirs(fid_buffer_dir, exist_ok=True) if args.gpu == 0 else 0
 
-#     eval_iter = args.num_eval_imgs // args.eval_batch_size
-#     img_list = list()
-#     for iter_idx in tqdm(range(eval_iter), desc='sample images'):
-#         z = torch.cuda.FloatTensor(np.random.normal(0, 1, (args.eval_batch_size, args.latent_dim)))
-    
-#         # Generate a batch of images
-#         gen_imgs = gen_net(z, epoch).mul_(127.5).add_(127.5).clamp_(0.0, 255.0).permute(0, 2, 3, 1).to('cpu',
-#                                                                                                 torch.uint8).numpy()
-#         for img_idx, img in enumerate(gen_imgs):
-#             file_name = os.path.join(fid_buffer_dir, f'iter{iter_idx}_b{img_idx}.png')
-#             imsave(file_name, img)
-#         img_list.extend(list(gen_imgs))
+        eval_iter = args.num_eval_imgs // args.eval_batch_size
+        img_list = list()
+        for iter_idx in tqdm(range(eval_iter), desc='sample images'):
+            z = torch.cuda.FloatTensor(np.random.normal(0, 1, (args.eval_batch_size, args.latent_dim)))
+
+    #         # Generate a batch of images
+            gen_imgs = gen_net(z, epoch).mul_(127.5).add_(127.5).clamp_(0.0, 255.0).permute(0, 2, 3, 1).to('cpu',
+                                                                                                    torch.uint8).numpy()
+            # for img_idx, img in enumerate(gen_imgs):
+            #     file_name = os.path.join(fid_buffer_dir, f'iter{iter_idx}_b{img_idx}.png')
+            #     imsave(file_name, img)
+            img_list.extend(list(gen_imgs))
 
 #     get inception score
     logger.info('=> calculate inception score') if args.local_rank == 0 else 0
