@@ -16,7 +16,7 @@ os.system(f"CUDA_VISIBLE_DEVICES=0,1,2,3 python -m \
 torch.distributed.launch \
 --nproc_per_node=4 \
 my_train.py \
--gen_bs 64 \
+-gen_bs 128 \
 -dis_bs 64 \
 --world-size 4 \
 --multiprocessing_distributed \
@@ -24,12 +24,12 @@ my_train.py \
 --bottom_width 8 \
 --img_size 32 \
 --max_iter 500000 \
---gen_model ViT_custom_rp_impl \
+--gen_model ViT_custom_rp_impl2 \
 --dis_model ViT_custom_scale2_rp_noise \
 --df_dim 384 \
 --d_heads 4 \
 --d_depth 3 \
---g_depth 2,2,1 \
+--g_depth 5,4,2 \
 --dropout 0 \
 --latent_dim 256 \
 --g_mlp 4 \

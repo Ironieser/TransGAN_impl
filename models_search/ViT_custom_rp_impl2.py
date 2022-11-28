@@ -40,7 +40,7 @@ def pixel_upsample(x, H, W):
     assert N == H * W
     x = x.permute(0, 2, 1)
     x = x.view(-1, C, H, W)
-    x = nn.PixelShuffle(4)(x)
+    x = nn.PixelShuffle(2)(x)
     B, C, H, W = x.size()
     x = x.view(-1, C, H * W)
     x = x.permute(0, 2, 1).contiguous()
@@ -67,39 +67,38 @@ class Generator(nn.Module):
         mlp_ratio = 2 if debug else args.g_mlp
         depth = [5, 4, 2] if debug else [int(i) for i in args.g_depth.split(",")]
         self.latent_dim = 256 if debug else args.latent_dim
-        self.l1 = nn.Linear(self.latent_dim, (self.bottom_width ** 2) * self.l1_embed_dim)
-        print(depth)
+        self.l1 = nn.Linear(self.latent_dim, (self.bottom_width ** 2) * self.embed_dim)
         self.blocks = build_transformer_encoder(  # [-1,c,8,8] -> []
                         image_size=(8, 8),
-                        patch_size=(2, 2),
+                        patch_size=(1, 1),
                         depth=depth[0],  # 5
-                        dim=embed_dim,  # 1024
-                        num_heads=embed_dim//64,  # 4
+                        dim=self.embed_dim,  # 1024
+                        num_heads=self.embed_dim//64,  # 4
                         mlp_ratio=mlp_ratio,  # 4
                         channels=embed_dim//4,
                         )
         self.upsample_blocks = nn.ModuleList([
             build_transformer_encoder(
                 image_size=(16, 16),
-                patch_size=(2, 2),
+                patch_size=(1, 1),
                 depth=depth[1],  # 4
-                dim=embed_dim,  # 256
-                num_heads=(embed_dim//64),  # 4
+                dim=self.embed_dim//4,  # 256
+                num_heads=(self.embed_dim//4//64),  # 4
                 mlp_ratio=mlp_ratio,  # 4
-                channels=embed_dim//16,
+                channels=self.embed_dim//16,
             ),
             build_transformer_encoder(
                 image_size=(32, 32),
                 patch_size=(1, 1),
                 depth=depth[2],  # 2
-                dim=embed_dim,  # 64
-                num_heads=(embed_dim//64),  # 4
+                dim=self.embed_dim//16,  # 64
+                num_heads=(self.embed_dim//16//64),  # 4
                 mlp_ratio=mlp_ratio,  # 4
-                channels=embed_dim//16,
+                channels=self.embed_dim//16,
             ),
         ])
         self.deconv = nn.Sequential(
-            nn.Conv2d(self.embed_dim, 3, 1, 1, 0)
+            nn.Conv2d(self.embed_dim//16, 3, 1, 1, 0)
         )
 
         self.initialize_weights()
@@ -129,17 +128,15 @@ class Generator(nn.Module):
             latent_size = z.size(-1)
             z = (z / z.norm(dim=-1, keepdim=True) * (latent_size ** 0.5))
 
-        x = self.l1(z)  # [4,256] -> [4,8*8*256] -> [4,64,1024]
-        x = rearrange(x, 'b (h w c) -> b c h w', h=H, w=W, c=self.l1_embed_dim).contiguous()
-        x = self.blocks(x)  # [b,256,8,8] -> [b,4*4,1024]
-        x, H, W = pixel_upsample(x, int(H/2), int(W/2))  # [4,4*4,1024] -> [4, 16*16, 64] -> [4,1024,256]
+        x = self.l1(z)  # [4,256] -> [4,8*8*256]
+        x = rearrange(x, 'b (h w c) -> b (h w) c', h=H, w=W, c=self.embed_dim).contiguous()  # [4,8*8*256] -> [4,64,1024]
+        x = self.blocks(x, embedded=True)  # [b,64,8,8] -> [b,4*4,1024]
+        x, H, W = pixel_upsample(x, H, W)  # [4,4*4,1024] -> [4, 16*16, 256] -> [4,1024,256]
+        x = self.upsample_blocks[0](x, embedded=True)   # [4, 16*16, 256]  -> [4, 16*16, 256]
+        x, H, W = pixel_upsample(x, H, W)  # [4, 8*8, 1024] -> [4, 32*32, 64]
+        x = self.upsample_blocks[1](x, embedded=True)  # [4, 32*32, 64] -> [4, 32*32, 64]
         x = rearrange(x, 'b (h w) c -> b c h w', h=H, w=W).contiguous()
-        x = self.upsample_blocks[0](x)   # [4, 16, 16, 64]  -> [4, 8*8, 1024]
-        x, H, W = pixel_upsample(x, int(H/2), int(W/2))  # [4, 8*8, 1024] -> [4, 32*32, 64]
-        x = rearrange(x, 'b (h w) c -> b c h w', h=H, w=W).contiguous()
-        x = self.upsample_blocks[1](x)  # [4, 32*32, 64] -> [4, 32*32, 1024]
-        x = rearrange(x, 'b (h w) c -> b c h w', h=H, w=W).contiguous()
-        output = self.deconv(x)  # reshape -> [4,1024,32,32] -> [4,3,32,32]
+        output = self.deconv(x)  # reshape -> [4,64,32,32] -> [4,3,32,32]
         return output
 
 

@@ -174,7 +174,7 @@ class ViT(nn.Module):
 
         x = x[:, 1:] if self.pool == 'all' else x[:, 0]
 
-        x = self.to_latent(x)
+        x = self.to_latent(x.contiguous())
 
         return x
 
