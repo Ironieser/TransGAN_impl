@@ -7,6 +7,7 @@ import torch.nn as nn
 from models_search.ViT_helper import DropPath, trunc_normal_
 from models_search.diff_aug import DiffAugment
 
+from utils.pos_embed import get_2d_sincos_pos_embed
 
 class matmul(nn.Module):
     def __init__(self):
@@ -37,7 +38,8 @@ def gelu(x):
         0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
         Also see https://arxiv.org/abs/1606.08415
     """
-    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+    # return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+    return torch.nn.GELU(x)
 
 
 def leakyrelu(x):
@@ -62,7 +64,11 @@ class Mlp(nn.Module):
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         self.fc1 = nn.Linear(in_features, hidden_features)
-        self.act = CustomAct(act_layer)
+        # self.act = CustomAct(act_layer)
+        if act_layer == 'gelu':
+            self.act = nn.GELU()
+        else:
+            self.act = CustomAct(act_layer)
         self.fc2 = nn.Linear(hidden_features, out_features)
         self.drop = nn.Dropout(drop)
 
@@ -214,8 +220,8 @@ def pixel_upsample(x, H, W):
 
 class Generator(nn.Module):
     def __init__(self, args=None, img_size=224, patch_size=16, in_chans=3, num_classes=10, embed_dim=384, depth=5,
-                 num_heads=4, mlp_ratio=4., qkv_bias=True, qk_scale=True, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, debug=False, use_rpe=False):
+                 num_heads=4, mlp_ratio=4., qkv_bias=False, qk_scale=False, drop_rate=0., attn_drop_rate=0.,
+                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, debug=False, use_rpe=True):
         super(Generator, self).__init__()
         self.debug = debug
         self.use_rpe=use_rpe
@@ -241,6 +247,7 @@ class Generator(nn.Module):
             self.pos_embed_2,
             self.pos_embed_3
         ]
+        # self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth[0])]  # stochastic depth decay rule
         self.blocks = StageBlock(
             depth=depth[0],  # 5
@@ -296,6 +303,34 @@ class Generator(nn.Module):
             nn.Conv2d(self.embed_dim // 16, 3, 1, 1, 0)
         )
 
+        self.initialize_weights()
+
+    def initialize_weights(self):
+        # initialization
+        # # initialize (and freeze) pos_embed by sin-cos embedding
+        # for i in range(len(self.pos_embed)):
+        #     pos_embed = get_2d_sincos_pos_embed(self.embed_dim, int(self.bottom_width*self.bottom_width**.5), cls_token=True)
+        #     self.pos_embed[i].data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
+
+        # # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
+        # w = self.patch_embed.proj.weight.data
+        # torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+
+        # # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
+        # torch.nn.init.normal_(self.cls_token, std=.02)
+
+        # initialize nn.Linear and nn.LayerNorm
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            # we use xavier_uniform following official JAX ViT:
+            torch.nn.init.xavier_uniform_(m.weight)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
     #         self.apply(self._init_weights)
 
     #     def _init_weights(self, m):

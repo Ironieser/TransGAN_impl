@@ -37,6 +37,7 @@ from copy import deepcopy
 from adamw import AdamW
 import random
 warnings.filterwarnings("ignore")
+# TORCH_DISTRIBUTED_DEBUG='DETAIL'
 CUDA_LAUNCH_BLOCKING=1
 def setup(local_rank):
     # print(local_rank)
@@ -89,8 +90,8 @@ def main(args):
         dis_net = torch.nn.SyncBatchNorm.convert_sync_batchnorm(dis_net)
         gen_net.apply(weights_init)
         dis_net.apply(weights_init)
-        gen_net = DDP(gen_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
-        dis_net = DDP(dis_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
+        gen_net = DDP(gen_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+        dis_net = DDP(dis_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
         # When using a single GPU per process and per
         # DistributedDataParallel, we need to divide the batch size

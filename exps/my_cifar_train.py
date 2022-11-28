@@ -24,7 +24,7 @@ my_train.py \
 --bottom_width 8 \
 --img_size 32 \
 --max_iter 500000 \
---gen_model ViT_custom_rp \
+--gen_model ViT_custom_rp_impl \
 --dis_model ViT_custom_scale2_rp_noise \
 --df_dim 384 \
 --d_heads 4 \
