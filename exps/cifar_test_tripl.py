@@ -12,7 +12,7 @@ def parse_args():
     return opt
 args = parse_args()
 
-os.system(f"CUDA_VISIBLE_DEVICES=0,1,2 python test.py \
+os.system(f"CUDA_VISIBLE_DEVICES=0,1,2,3 python test.py \
 -gen_bs 128 \
 -dis_bs 64 \
 --dist-url 'tcp://localhost:14256' \
@@ -24,7 +24,7 @@ os.system(f"CUDA_VISIBLE_DEVICES=0,1,2 python test.py \
 --bottom_width 8 \
 --img_size 32 \
 --max_iter 500000 \
---gen_model ViT_custom_rp \
+--gen_model ViT_custom_rp_tripl_attn \
 --dis_model ViT_custom_scale2_rp_noise \
 --df_dim 384 \
 --d_heads 4 \
@@ -55,5 +55,5 @@ os.system(f"CUDA_VISIBLE_DEVICES=0,1,2 python test.py \
 --ema_warmup 0.1 \
 --ema 0.9999 \
 --diff_aug translation,cutout,color \
---load_path /public/home/dongsx/transgan/logs/cifar_train_2022_11_28_23_58_49/Model/checkpoint_best.pth \
+--load_path /public/home/dongsx/transgan/logs/cifar_train_2022_11_28_23_54_39/Model/checkpoint_best.pth \
 --exp_name cifar_train")

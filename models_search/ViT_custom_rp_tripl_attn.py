@@ -6,9 +6,9 @@ import torch.nn as nn
 
 from models_search.ViT_helper import DropPath, trunc_normal_
 from models_search.diff_aug import DiffAugment
-
+from models_search.triple_attn import TripletAttention
 from utils.pos_embed import get_2d_sincos_pos_embed
-
+from einops import rearrange
 class matmul(nn.Module):
     def __init__(self):
         super().__init__()
@@ -95,7 +95,7 @@ class Attention(nn.Module):
         self.mat = matmul()
         self.window_size = window_size
         self.use_rpe = use_rpe
-        if self.window_size != 0 and self.use_rpe:
+        if self.window_size != 0:
             self.relative_position_bias_table = nn.Parameter(
                 torch.zeros((2 * window_size - 1) * (2 * window_size - 1), num_heads))  # 2*Wh-1 * 2*Ww-1, nH
 
@@ -206,13 +206,14 @@ class StageBlock(nn.Module):
         return x
 
 
-def pixel_upsample(x, H, W):
+def pixel_upsample(x, H, W,):
     B, N, C = x.size()
     assert N == H * W
     x = x.permute(0, 2, 1)
     x = x.view(-1, C, H, W)
     x = nn.PixelShuffle(2)(x)
     B, C, H, W = x.size()
+    # x = triple_attn(x)
     x = x.view(-1, C, H * W)
     x = x.permute(0, 2, 1)
     return x, H, W
@@ -221,7 +222,7 @@ def pixel_upsample(x, H, W):
 class Generator(nn.Module):
     def __init__(self, args=None, img_size=224, patch_size=16, in_chans=3, num_classes=10, embed_dim=384, depth=5,
                  num_heads=4, mlp_ratio=4., qkv_bias=False, qk_scale=False, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, debug=False, use_rpe=False):
+                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, debug=False, use_rpe=True):
         super(Generator, self).__init__()
         self.debug = debug
         self.use_rpe=use_rpe
@@ -300,28 +301,38 @@ class Generator(nn.Module):
             trunc_normal_(self.pos_embed[i], std=.02)
 
         self.deconv = nn.Sequential(
-            nn.Conv2d(self.embed_dim // 16, 3, 1, 1, 0)
+            nn.Conv2d(self.embed_dim // 16, 16, 1, 1, 0)
         )
+        self.deconv2 = nn.Sequential(
+            nn.Conv2d(16, 3, 1, 1, 0)
+        )
+        self.triple_attn = nn.ModuleList([
+            TripletAttention(),
+            # TripletAttention(),
+            # TripletAttention(),
+            # TripletAttention(),
+            ])
+
 
         # self.initialize_weights()
 
     # def initialize_weights(self):
-        # initialization
-        # # initialize (and freeze) pos_embed by sin-cos embedding
-        # for i in range(len(self.pos_embed)):
-        #     pos_embed = get_2d_sincos_pos_embed(self.embed_dim, int(self.bottom_width*self.bottom_width**.5), cls_token=True)
-        #     self.pos_embed[i].data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
-
-        # # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
-        # w = self.patch_embed.proj.weight.data
-        # torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
-
-        # # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
-        # torch.nn.init.normal_(self.cls_token, std=.02)
-
-        # initialize nn.Linear and nn.LayerNorm
-        # self.apply(self._init_weights)
-
+    #     # initialization
+    #     # # initialize (and freeze) pos_embed by sin-cos embedding
+    #     # for i in range(len(self.pos_embed)):
+    #     #     pos_embed = get_2d_sincos_pos_embed(self.embed_dim, int(self.bottom_width*self.bottom_width**.5), cls_token=True)
+    #     #     self.pos_embed[i].data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
+    #
+    #     # # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
+    #     # w = self.patch_embed.proj.weight.data
+    #     # torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+    #
+    #     # # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
+    #     # torch.nn.init.normal_(self.cls_token, std=.02)
+    #
+    #     # initialize nn.Linear and nn.LayerNorm
+    #     self.apply(self._init_weights)
+    #
     # def _init_weights(self, m):
     #     if isinstance(m, nn.Linear):
     #         # we use xavier_uniform following official JAX ViT:
@@ -331,26 +342,7 @@ class Generator(nn.Module):
     #     elif isinstance(m, nn.LayerNorm):
     #         nn.init.constant_(m.bias, 0)
     #         nn.init.constant_(m.weight, 1.0)
-    #         self.apply(self._init_weights)
 
-    #     def _init_weights(self, m):
-    #         if isinstance(m, nn.Linear):
-    #             trunc_normal_(m.weight, std=.02)
-    #             if isinstance(m, nn.Linear) and m.bias is not None:
-    #                 nn.init.constant_(m.bias, 0)
-    #         elif isinstance(m, nn.Conv2d):
-    #             trunc_normal_(m.weight, std=.02)
-    #             if isinstance(m, nn.Conv2d) and m.bias is not None:
-    #                 nn.init.constant_(m.bias, 0)
-    #         elif isinstance(m, nn.LayerNorm):
-    #             nn.init.constant_(m.bias, 0)
-    #             nn.init.constant_(m.weight, 1.0)
-    #         elif isinstance(m, nn.BatchNorm1d):
-    #             nn.init.constant_(m.bias, 0)
-    #             nn.init.constant_(m.weight, 1.0)
-    #         elif isinstance(m, nn.InstanceNorm1d):
-    #             nn.init.constant_(m.bias, 0)
-    #             nn.init.constant_(m.weight, 1.0)
 
     def set_arch(self, x, cur_stage):
         pass
@@ -365,8 +357,10 @@ class Generator(nn.Module):
         else:
             x = x + self.pos_embed[0].to(x.get_device())
 
-        B = x.size()
         H, W = self.bottom_width, self.bottom_width
+        # x = rearrange(x, 'b (h w) c -> b c h w', h=H,w=W,c=self.embed_dim).contiguous()
+        # x = self.triple_attn[0](x)
+        # x = rearrange(x, 'b c h w -> b (h w) c', h=H,w=W,c=self.embed_dim).contiguous()
         x = self.blocks(x)
         for index, blk in enumerate(self.upsample_blocks):
             # x = x.permute(0,2,1)
@@ -381,8 +375,11 @@ class Generator(nn.Module):
             # _, _, H, W = x.size()
             # x = x.view(-1, self.embed_dim, H*W)
             # x = x.permute(0,2,1)
-        output = self.deconv(
-            x.permute(0, 2, 1).view(-1, self.embed_dim // 16, H, W))  # reshape -> [4,64,32,32] -> [4,3,32,32]
+        x = x.permute(0, 2, 1).view(-1, self.embed_dim // 16, H, W)
+
+        x = self.deconv(x)  # reshape -> [4,64,32,32] -> [4,3,32,32]
+        x = self.triple_attn[0](x)
+        output = self.deconv2(x)
         return output
 
 

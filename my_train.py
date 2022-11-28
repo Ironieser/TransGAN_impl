@@ -90,8 +90,8 @@ def main(args):
         dis_net = torch.nn.SyncBatchNorm.convert_sync_batchnorm(dis_net)
         gen_net.apply(weights_init)
         dis_net.apply(weights_init)
-        gen_net = DDP(gen_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-        dis_net = DDP(dis_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+        gen_net = DDP(gen_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
+        dis_net = DDP(dis_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
 
         # When using a single GPU per process and per
         # DistributedDataParallel, we need to divide the batch size
@@ -202,8 +202,8 @@ def main(args):
         train_sampler.set_epoch(epoch)
         lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
         cur_stage = cur_stages(epoch, args)
-        print("cur_stage " + str(cur_stage)) if local_rank== 0 else 0
-        print(f"path: {args.path_helper['prefix']}") if local_rank== 0 else 0
+        # print("cur_stage " + str(cur_stage)) if local_rank== 0 else 0
+        # print(f"path: {args.path_helper['prefix']}") if local_rank== 0 else 0
         train(args, gen_net, dis_net, gen_optimizer, dis_optimizer, gen_avg_param, train_loader, epoch, writer_dict,
               fixed_z,
               lr_schedulers)

@@ -77,7 +77,7 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
     
     dis_optimizer.zero_grad()
     gen_optimizer.zero_grad()
-    train_bar = tqdm(train_loader) if dist.get_rank()==0 else train_loader
+    # train_bar = tqdm(train_loader) if dist.get_rank()==0 else train_loader
     for iter_idx, (imgs, _) in enumerate(train_loader):
         global_steps = writer_dict['train_global_steps']
         #
