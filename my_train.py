@@ -63,6 +63,8 @@ def main(args):
                 nn.init.orthogonal_(m.weight.data)
             elif args.init_type == 'xavier_uniform':
                 nn.init.xavier_uniform(m.weight.data, 1.)
+            elif args.init_type == 'kaiming_normal':
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             else:
                 raise NotImplementedError('{} unknown inital type'.format(args.init_type))
         #         elif classname.find('Linear') != -1:
@@ -90,7 +92,7 @@ def main(args):
         dis_net = torch.nn.SyncBatchNorm.convert_sync_batchnorm(dis_net)
         gen_net.apply(weights_init)
         dis_net.apply(weights_init)
-        gen_net = DDP(gen_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
+        gen_net = DDP(gen_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
         dis_net = DDP(dis_net, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
 
         # When using a single GPU per process and per
@@ -249,7 +251,7 @@ def main(args):
                 'best_fid': best_fid,
                 'path_helper': args.path_helper,
                 'fixed_z': fixed_z
-            }, is_best, args.path_helper['ckpt_path'], filename='epoch'+str(epoch)+"_checkpoint.pth")
+            }, is_best, args.path_helper['ckpt_path'], filename='epoch'+str(epoch+1)+"_checkpoint.pth")
         dist.barrier()
         del avg_gen_net
 

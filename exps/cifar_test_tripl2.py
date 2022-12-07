@@ -3,28 +3,28 @@
 import os
 import argparse
 
-# def parse_args():
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--rank', type=str, default="0")
-#     parser.add_argument('--node', type=str, default="0015")
-#     opt = parser.parse_args()
-#
-#     return opt
-# args = parse_args()
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--rank', type=str, default="0")
+    parser.add_argument('--node', type=str, default="0015")
+    opt = parser.parse_args()
 
-os.system(f"CUDA_VISIBLE_DEVICES=0,1,2,3 python -m \
-torch.distributed.launch \
---nproc_per_node=4 \
-my_train.py \
+    return opt
+args = parse_args()
+
+os.system(f"CUDA_VISIBLE_DEVICES=2,3 python test.py \
 -gen_bs 128 \
 -dis_bs 64 \
---world-size 4 \
+--dist-url 'tcp://localhost:14256' \
+--dist-backend 'nccl' \
 --multiprocessing_distributed \
+--world-size 1 \
+--rank {args.rank} \
 --dataset cifar10 \
 --bottom_width 8 \
 --img_size 32 \
 --max_iter 500000 \
---gen_model ViT_custom_rp \
+--gen_model ViT_custom_rp_tripl_attn2 \
 --dis_model ViT_custom_scale2_rp_noise \
 --df_dim 384 \
 --d_heads 4 \
@@ -33,7 +33,7 @@ my_train.py \
 --dropout 0 \
 --latent_dim 256 \
 --gf_dim 1024 \
---num_workers 10 \
+--num_workers 16 \
 --g_lr 0.0001 \
 --d_lr 0.0001 \
 --optimizer adam \
@@ -46,7 +46,7 @@ my_train.py \
 --num_eval_imgs 50000 \
 --init_type xavier_uniform \
 --n_critic 4 \
---val_freq 1000000 \
+--val_freq 20 \
 --print_freq 50 \
 --grow_steps 0 0 \
 --fade_in 0 \
@@ -54,6 +54,6 @@ my_train.py \
 --ema_kimg 500 \
 --ema_warmup 0.1 \
 --ema 0.9999 \
---cbr \
 --diff_aug translation,cutout,color \
+--load_path /public/home/dongsx/transgan/logs/cifar_train_2022_11_29_07_01_24/Model/checkpoint_best.pth \
 --exp_name cifar_train")

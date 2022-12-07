@@ -55,5 +55,5 @@ os.system(f"CUDA_VISIBLE_DEVICES=0,1,2 python test.py \
 --ema_warmup 0.1 \
 --ema 0.9999 \
 --diff_aug translation,cutout,color \
---load_path /public/home/dongsx/transgan/logs/cifar_train_2022_11_28_23_58_49/Model/checkpoint_best.pth \
+--load_path /public/home/dongsx/transgan/logs/cifar_train_2022_11_29_07_12_44/Model/epoch499_checkpoint.pth \
 --exp_name cifar_train")

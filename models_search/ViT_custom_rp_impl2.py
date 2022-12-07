@@ -73,7 +73,7 @@ class Generator(nn.Module):
                         patch_size=(1, 1),
                         depth=depth[0],  # 5
                         dim=self.embed_dim,  # 1024
-                        num_heads=self.embed_dim//64,  # 4
+                        num_heads=self.embed_dim//64,  # 12
                         mlp_ratio=mlp_ratio,  # 4
                         channels=embed_dim//4,
                         )
@@ -83,7 +83,7 @@ class Generator(nn.Module):
                 patch_size=(1, 1),
                 depth=depth[1],  # 4
                 dim=self.embed_dim//4,  # 256
-                num_heads=(self.embed_dim//4//64),  # 4
+                num_heads=(self.embed_dim//4//64),  # 3
                 mlp_ratio=mlp_ratio,  # 4
                 channels=self.embed_dim//16,
             ),
@@ -92,7 +92,7 @@ class Generator(nn.Module):
                 patch_size=(1, 1),
                 depth=depth[2],  # 2
                 dim=self.embed_dim//16,  # 64
-                num_heads=(self.embed_dim//16//64),  # 4
+                num_heads=(self.embed_dim//16//64),  # 1
                 mlp_ratio=mlp_ratio,  # 4
                 channels=self.embed_dim//16,
             ),
@@ -101,26 +101,26 @@ class Generator(nn.Module):
             nn.Conv2d(self.embed_dim//16, 3, 1, 1, 0)
         )
 
-        self.initialize_weights()
+        # self.initialize_weights()
 
-    def initialize_weights(self):
-        self._init_conv(self.deconv)
-        # initialize nn.Linear and nn.LayerNorm
-        self.apply(self._init_weights)
-
-    def _init_conv(self,m):
-        if isinstance(m, nn.Conv2d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-
-    def _init_weights(self, m):
-        if isinstance(m, nn.Linear):
-            # we use xavier_uniform following official JAX ViT:
-            torch.nn.init.xavier_uniform_(m.weight)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
+    # def initialize_weights(self):
+    #     self._init_conv(self.deconv)
+    #     # initialize nn.Linear and nn.LayerNorm
+    #     self.apply(self._init_weights)
+    #
+    # def _init_conv(self,m):
+    #     if isinstance(m, nn.Conv2d):
+    #         nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+    #
+    # def _init_weights(self, m):
+    #     if isinstance(m, nn.Linear):
+    #         # we use xavier_uniform following official JAX ViT:
+    #         torch.nn.init.xavier_uniform_(m.weight)
+    #         if isinstance(m, nn.Linear) and m.bias is not None:
+    #             nn.init.constant_(m.bias, 0)
+    #     elif isinstance(m, nn.LayerNorm):
+    #         nn.init.constant_(m.bias, 0)
+    #         nn.init.constant_(m.weight, 1.0)
 
     def forward(self, z, epoch):
         H, W = self.bottom_width, self.bottom_width

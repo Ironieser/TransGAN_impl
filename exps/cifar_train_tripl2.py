@@ -24,7 +24,7 @@ my_train.py \
 --bottom_width 8 \
 --img_size 32 \
 --max_iter 500000 \
---gen_model ViT_custom_rp \
+--gen_model ViT_custom_rp_tripl_attn2 \
 --dis_model ViT_custom_scale2_rp_noise \
 --df_dim 384 \
 --d_heads 4 \
@@ -44,7 +44,7 @@ my_train.py \
 --phi 1 \
 --eval_batch_size 8 \
 --num_eval_imgs 50000 \
---init_type xavier_uniform \
+--init_type kaiming_normal \
 --n_critic 4 \
 --val_freq 1000000 \
 --print_freq 50 \

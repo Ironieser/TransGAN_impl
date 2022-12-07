@@ -222,7 +222,7 @@ def pixel_upsample(x, H, W,):
 class Generator(nn.Module):
     def __init__(self, args=None, img_size=224, patch_size=16, in_chans=3, num_classes=10, embed_dim=384, depth=5,
                  num_heads=4, mlp_ratio=4., qkv_bias=False, qk_scale=False, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, debug=False, use_rpe=True):
+                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, debug=False, use_rpe=False):
         super(Generator, self).__init__()
         self.debug = debug
         self.use_rpe=use_rpe
@@ -239,7 +239,7 @@ class Generator(nn.Module):
         depth = [5, 4, 2] if debug else [int(i) for i in args.g_depth.split(",")]
         act_layer = "gelu" if debug else args.g_act
         self.latent_dim = 256 if debug else args.latent_dim
-        self.l1 = nn.Linear(self.latent_dim, (self.bottom_width ** 2) * self.embed_dim)
+        self.l1 = nn.Linear(self.latent_dim, (self.bottom_width ** 2) * 512)
         self.pos_embed_1 = nn.Parameter(torch.zeros(1, self.bottom_width ** 2, embed_dim))
         self.pos_embed_2 = nn.Parameter(torch.zeros(1, (self.bottom_width * 2) ** 2, embed_dim // 4))
         self.pos_embed_3 = nn.Parameter(torch.zeros(1, (self.bottom_width * 4) ** 2, embed_dim // 16))
@@ -303,36 +303,36 @@ class Generator(nn.Module):
         self.deconv = nn.Sequential(
             nn.Conv2d(self.embed_dim // 16, 3, 1, 1, 0)
         )
-        # self.deconv2 = nn.Sequential(
-        #     nn.Conv2d(16, 3, 1, 1, 0)
-        # )
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(512, 1024, 3, 1, 1)
+        )
         self.triple_attn = nn.ModuleList([
-            TripletAttention(no_spatial=True),
+            TripletAttention(),
             # TripletAttention(),
             # TripletAttention(),
             # TripletAttention(),
             ])
 
 
-        # self.initialize_weights()
-
     # def initialize_weights(self):
-    #     # initialization
-    #     # # initialize (and freeze) pos_embed by sin-cos embedding
-    #     # for i in range(len(self.pos_embed)):
-    #     #     pos_embed = get_2d_sincos_pos_embed(self.embed_dim, int(self.bottom_width*self.bottom_width**.5), cls_token=True)
-    #     #     self.pos_embed[i].data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
-    #
-    #     # # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
-    #     # w = self.patch_embed.proj.weight.data
-    #     # torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
-    #
-    #     # # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
-    #     # torch.nn.init.normal_(self.cls_token, std=.02)
-    #
-    #     # initialize nn.Linear and nn.LayerNorm
-    #     self.apply(self._init_weights)
-    #
+    #     self._init_conv(self.conv1)
+    #     self._init_conv(self.deconv)
+        # initialization
+        # # initialize (and freeze) pos_embed by sin-cos embedding
+        # for i in range(len(self.pos_embed)):
+        #     pos_embed = get_2d_sincos_pos_embed(self.embed_dim, int(self.bottom_width*self.bottom_width**.5), cls_token=True)
+        #     self.pos_embed[i].data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
+
+        # # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
+        # w = self.patch_embed.proj.weight.data
+        # torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+
+        # # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
+        # torch.nn.init.normal_(self.cls_token, std=.02)
+
+        # initialize nn.Linear and nn.LayerNorm
+        # self.apply(self._init_weights)
+
     # def _init_weights(self, m):
     #     if isinstance(m, nn.Linear):
     #         # we use xavier_uniform following official JAX ViT:
@@ -342,6 +342,10 @@ class Generator(nn.Module):
     #     elif isinstance(m, nn.LayerNorm):
     #         nn.init.constant_(m.bias, 0)
     #         nn.init.constant_(m.weight, 1.0)
+    # def _init_conv(m):
+    #     if isinstance(m, nn.Conv2d):
+    #         nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+
 
 
     def set_arch(self, x, cur_stage):
@@ -351,16 +355,19 @@ class Generator(nn.Module):
         if self.latent_norm:
             latent_size = z.size(-1)
             z = (z / z.norm(dim=-1, keepdim=True) * (latent_size ** 0.5))
-        x = self.l1(z).view(-1, self.bottom_width ** 2, self.embed_dim)  # [4,256] -> [4,65536] -> [4,64,1024]
+        x = self.l1(z).view(-1, self.bottom_width ** 2, 512)  # [4,256] -> [4,65536] -> [4,64,1024]
+
+        H, W = self.bottom_width, self.bottom_width
+        x = rearrange(x, 'b (h w) c -> b c h w', h=H,w=W,).contiguous()
+        x = self.conv1(x)
+        res_x = x
+        x = self.triple_attn[0](x) + res_x
+        x = rearrange(x, 'b c h w -> b (h w) c', h=H,w=W,).contiguous()
         if self.debug:
             x = x + self.pos_embed[0]
         else:
             x = x + self.pos_embed[0].to(x.get_device())
 
-        H, W = self.bottom_width, self.bottom_width
-        # x = rearrange(x, 'b (h w) c -> b c h w', h=H,w=W,c=self.embed_dim).contiguous()
-        # x = self.triple_attn[0](x)
-        # x = rearrange(x, 'b c h w -> b (h w) c', h=H,w=W,c=self.embed_dim).contiguous()
         x = self.blocks(x)
         for index, blk in enumerate(self.upsample_blocks):
             # x = x.permute(0,2,1)
@@ -376,10 +383,11 @@ class Generator(nn.Module):
             # x = x.view(-1, self.embed_dim, H*W)
             # x = x.permute(0,2,1)
         x = x.permute(0, 2, 1).view(-1, self.embed_dim // 16, H, W)
-        x = (self.triple_attn[0](x) + x) * 0.5
-        output = self.deconv(x)  # reshape -> [4,64,32,32] -> [4,3,32,32]
-        return output
 
+        output = self.deconv(x)  # reshape -> [4,64,32,32] -> [4,3,32,32]
+        # x = self.triple_attn[0](x)
+        # output = self.deconv2(x)
+        return output
 
 
 

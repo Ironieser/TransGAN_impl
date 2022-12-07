@@ -95,10 +95,20 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
         
 
         real_validity = dis_net(real_imgs)
+
         fake_imgs = gen_net(z, epoch).detach()
         assert fake_imgs.size() == real_imgs.size(), f"fake_imgs.size(): {fake_imgs.size()} real_imgs.size(): {real_imgs.size()}"
 
         fake_validity = dis_net(fake_imgs)
+
+        # cBR loss
+        if args.cbr:
+            real_validity_no_aug = dis_net(real_imgs, aug=False)
+            fake_validity_no_aug = dis_net(fake_imgs, aug=False)
+            # print(fake_validity.shape)
+            l_real = torch.norm((real_validity_no_aug-real_validity), dim=-1).mean()
+            l_fake = torch.norm((fake_validity_no_aug-fake_validity), dim=-1).mean()
+            l_bcr = 1.0 * l_real + 1.0 * l_fake
 
         # cal loss
         if args.loss == 'hinge':
@@ -139,9 +149,11 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             gradient_penalty = compute_gradient_penalty(dis_net, real_imgs, fake_imgs.detach(), args.phi)
             d_loss = -torch.mean(real_validity) + torch.mean(fake_validity) + gradient_penalty * 10 / (
                     args.phi ** 2)
-            d_loss += (torch.mean(real_validity) ** 2) * 1e-3
+            d_loss = d_loss + (torch.mean(real_validity) ** 2) * 1e-3
         else:
             raise NotImplementedError(args.loss)
+        if args.cbr:
+            d_loss = d_loss + l_bcr
         d_loss = d_loss/float(args.accumulated_times)
         d_loss.backward()
         
@@ -149,8 +161,9 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             torch.nn.utils.clip_grad_norm_(dis_net.parameters(), 5.)
             dis_optimizer.step()
             dis_optimizer.zero_grad()
-
-            writer.add_scalar('d_loss', d_loss.item(), global_steps) if args.local_rank == 0 else 0
+            writer.add_scalar('l_brc', l_bcr.item(), global_steps) if args.local_rank == 0 else 0
+            if args.cbr:
+                writer.add_scalar('d_loss', d_loss.item(), global_steps) if args.local_rank == 0 else 0
 
         # -----------------
         #  Train Generator

@@ -504,10 +504,7 @@ class Discriminator(nn.Module):
     def forward_features(self, x, aug=True, epoch=400):
         if "None" not in self.args.diff_aug and aug:
             x = DiffAugment(x, self.args.diff_aug, True, [self.Hz_geom, self.Hz_fbank])
-#         with torch.no_grad():
-#             save_image(x.clone(), f'in_{self.args.rank}.png', nrow=4, padding=1, normalize=True, scale_each=True)
-#         import time
-#         time.sleep(5)
+
         B, _, H, W = x.size()
         H = W = H//self.patch_size
         

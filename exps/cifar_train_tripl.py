@@ -44,7 +44,7 @@ my_train.py \
 --phi 1 \
 --eval_batch_size 8 \
 --num_eval_imgs 50000 \
---init_type xavier_uniform \
+--init_type kaiming_normal \
 --n_critic 4 \
 --val_freq 1000000 \
 --print_freq 50 \
@@ -54,5 +54,6 @@ my_train.py \
 --ema_kimg 500 \
 --ema_warmup 0.1 \
 --ema 0.9999 \
+--cbr \
 --diff_aug translation,cutout,color \
 --exp_name cifar_train")

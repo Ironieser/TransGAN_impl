@@ -164,7 +164,7 @@ def parse_args():
         default='./data',
         help='The path of data set')
     parser.add_argument('--init_type', type=str, default='normal',
-                        choices=['normal', 'orth', 'xavier_uniform', 'false'],
+                        choices=['normal', 'orth', 'xavier_uniform', 'false', 'kaiming_normal'],
                         help='The init type')
     parser.add_argument('--gf_dim', type=int, default=64,
                         help='The base channel num of gen')
@@ -285,7 +285,8 @@ def parse_args():
                         help='discriminator mlp ratio')
     parser.add_argument('--show', action='store_true',
                     help='show')
-
+    parser.add_argument('--cbr', action='store_true',
+                        help='use cbr')
     opt = parser.parse_args()
 
     return opt

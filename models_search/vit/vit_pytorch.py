@@ -112,9 +112,11 @@ class ViT(nn.Module):
         # assert num_patches > MIN_NUM_PATCHES, f'your number of patches ({num_patches}) is way too small for attention to be effective (at least 16). Try decreasing your patch size'
         assert pool in {'cls', 'mean', 'all'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
         self.dim = dim
+        self.embedded = True
         self.patch_size = patch_size
-        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, dim), requires_grad=False)
-        self.patch_to_embedding = nn.Linear(patch_dim, dim)
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, dim), requires_grad=True)
+        if not self.embedded:
+            self.patch_to_embedding = nn.Linear(patch_dim, dim)
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
@@ -130,13 +132,11 @@ class ViT(nn.Module):
         self.initialize_weights()
 
     def initialize_weights(self):
-        # initialize (and freeze) pos_embed by sin-cos embedding
-        pos_embed = get_2d_sincos_pos_embed(self.dim, int(self.num_patches**.5), cls_token=True)
-        self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
-        w = self.patch_to_embedding.weight.data
-        torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+        if not self.embedded:
+            w = self.patch_to_embedding.weight.data
+            torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
 
         # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
         torch.nn.init.normal_(self.cls_token, std=.02)
